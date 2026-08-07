@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+.DS_Store
+coverage/
+*.log
+*.tsbuildinfo
+.stitch/
+
+# Secrets: ignore every env file, keep only the checked-in template.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Local scratch
+*.local
+run-local.ps1
+**/run-local.ps1
+start-tunnel.ps1
+**/start-tunnel.ps1
+cloudflared.exe
+**/cloudflared.exe
+storage/

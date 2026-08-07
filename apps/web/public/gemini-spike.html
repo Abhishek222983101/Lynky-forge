@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sornam · Gemini Live spike</title>
+<style>
+  :root { --gold:#c9a227; --gold-hi:#fbedb4; --onyx:#0e0e10; --ink:#e8e4d8; --mute:#8a8478; --green:#3ecf8e; --red:#e0645a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: linear-gradient(180deg,#151416,var(--onyx)); color: var(--ink); min-height:100vh; }
+  .wrap { max-width: 860px; margin:0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin:0 0 4px; }
+  .sub { color: var(--mute); font-size:14px; margin:0 0 24px; }
+  .card { background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:18px; margin-bottom:16px; }
+  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--mute); margin-bottom:6px; }
+  input, select { width:100%; padding:11px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color:#fff; font-size:14px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > * { flex:1; min-width:200px; }
+  button { cursor:pointer; border:0; border-radius:10px; padding:13px 18px; font-size:15px; font-weight:700; }
+  .mic { width:100%; margin-top:14px; background: linear-gradient(135deg,#8a6d1f,var(--gold) 50%,var(--gold-hi)); color:#241d05; }
+  .mic.live { background: linear-gradient(135deg,#7a1f1f,var(--red)); color:#fff; animation: pulse 1.3s ease-in-out infinite; }
+  @keyframes pulse { 50% { filter:brightness(1.15); } }
+  .mic:disabled { opacity:.5; cursor:default; }
+  .stat { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px; }
+  .stat:last-child { border:0; }
+  .stat b { font-variant-numeric: tabular-nums; }
+  .log { font-family: ui-monospace, monospace; font-size:13px; line-height:1.6; max-height:320px; overflow:auto; }
+  .log .you { color: var(--gold-hi); }
+  .log .ai { color: var(--green); }
+  .log .sys { color: var(--mute); }
+  .log .tool { color:#6db3ff; }
+  .dot { display:inline-block; width:8px;height:8px;border-radius:50%;background:var(--mute);margin-right:8px;vertical-align:middle; }
+  .dot.on { background: var(--green); }
+  .hint { font-size:12px; color:var(--mute); margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sornam · Gemini Live spike</h1>
+  <p class="sub">Direct browser → Gemini Live (native audio, WebSocket). Tests Tamil/English counter speech, tool calling, and real latency. No LiveKit, no backend.</p>
+
+  <div class="card">
+    <label>Gemini API key (from aistudio.google.com/apikey — kept only in this browser)</label>
+    <input id="key" type="password" placeholder="AIza..." autocomplete="off" />
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label>Model</label>
+        <select id="model">
+          <option value="models/gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash native-audio</option>
+          <option value="models/gemini-3.1-flash-live-preview">gemini-3.1-flash-live (newest)</option>
+          <option value="models/gemini-live-2.5-flash-preview">gemini-live-2.5-flash (half-cascade)</option>
+        </select>
+      </div>
+      <div>
+        <label>Connection</label>
+        <div style="padding:11px 0"><span class="dot" id="dot"></span><span id="connState">Not connected</span></div>
+      </div>
+    </div>
+    <button class="mic" id="mic" disabled>Enter a key, then tap to talk</button>
+    <p class="hint">Try: "Show me the stock summary" · "22 காரட் bangles எத்தனை இருக்கு?" · "How many gold chains do we have?"</p>
+  </div>
+
+  <div class="card">
+    <div class="stat"><span>Time to first spoken response</span><b id="latency">—</b></div>
+    <div class="stat"><span>Last tool called</span><b id="lastTool">—</b></div>
+    <div class="stat"><span>Detected input language</span><b id="lang">—</b></div>
+  </div>
+
+  <div class="card">
+    <label>Conversation</label>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const log = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; $("log").prepend(d); };
+
+// ---- One fake business tool, so we can prove the tool-call loop without the backend.
+// In production this maps to the real stock_summary action via the command bus.
+const STOCK_SUMMARY = {
+  name: "stock_summary",
+  description: "Returns the shop's current inventory summary: item count and estimated value.",
+  parameters: { type: "object", properties: {}, required: [] }
+};
+function runStockSummary() {
+  return { itemCount: 128, estimatedValueInr: 4520000, note: "22K gold is the largest category" };
+}
+
+const SYSTEM = [
+  "You are Sornam, a warm, concise voice assistant for an Indian jewellery shop counter.",
+  "The shopkeeper speaks Tamil, Hindi or English, often code-mixed. Reply in the same language they used, in one or two short spoken sentences.",
+  "When asked anything about stock, inventory, how many items, or shop value, call the stock_summary tool and then read the numbers back clearly in rupees.",
+  "Never invent numbers. Speak naturally, like a helpful person at the counter."
+].join(" ");
+
+let ws, audioCtx, micStream, procNode, playHead = 0, speaking = false, live = false, spokeAt = 0, awaitingReply = false;
+
+function setConn(state, on) { $("connState").textContent = state; $("dot").classList.toggle("on", !!on); }
+
+// base64 helpers
+const toB64 = (bytes) => { let s = ""; for (let i=0;i<bytes.length;i++) s += String.fromCharCode(bytes[i]); return btoa(s); };
+const fromB64 = (b64) => { const bin = atob(b64); const b = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b; };
+
+// downsample Float32 @ inputRate -> Int16 PCM @ 16k
+function to16kPCM(float32, inRate) {
+  const ratio = inRate / 16000;
+  const outLen = Math.floor(float32.length / ratio);
+  const out = new Int16Array(outLen);
+  for (let i=0;i<outLen;i++) {
+    const s = Math.max(-1, Math.min(1, float32[Math.floor(i*ratio)]));
+    out[i] = s < 0 ? s*0x8000 : s*0x7fff;
+  }
+  return new Uint8Array(out.buffer);
+}
+
+function playPCM24k(bytes) {
+  const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength/2);
+  const f32 = new Float32Array(int16.length);
+  for (let i=0;i<int16.length;i++) f32[i] = int16[i] / 32768;
+  const buf = audioCtx.createBuffer(1, f32.length, 24000);
+  buf.getChannelData(0).set(f32);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf; src.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  if (playHead < now) playHead = now;
+  src.start(playHead);
+  playHead += buf.duration;
+}
+
+async function connect() {
+  const key = $("key").value.trim();
+  const model = $("model").value;
+  const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(key)}`;
+  ws = new WebSocket(url);
+  setConn("Connecting…", false);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ setup: {
+      model,
+      generationConfig: { responseModalities: ["AUDIO"] },
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      tools: [{ functionDeclarations: [STOCK_SUMMARY] }],
+      inputAudioTranscription: {},
+      outputAudioTranscription: {}
+    }}));
+  };
+  ws.onmessage = async (evt) => {
+    const text = evt.data instanceof Blob ? await evt.data.text() : evt.data;
+    let msg; try { msg = JSON.parse(text); } catch { return; }
+    if (msg.setupComplete) { setConn("Connected", true); log("sys", "· connected, start talking"); return; }
+    const sc = msg.serverContent;
+    if (sc) {
+      if (sc.inputTranscription?.text) { log("you", "you: " + sc.inputTranscription.text); }
+      if (sc.outputTranscription?.text) { log("ai", "sornam: " + sc.outputTranscription.text); }
+      const parts = sc.modelTurn?.parts || [];
+      for (const p of parts) {
+        if (p.inlineData?.data && p.inlineData.mimeType?.startsWith("audio/pcm")) {
+          if (awaitingReply) { $("latency").textContent = (performance.now()-spokeAt).toFixed(0)+" ms"; awaitingReply = false; }
+          playPCM24k(fromB64(p.inlineData.data));
+        }
+      }
+    }
+    if (msg.toolCall) {
+      for (const fc of msg.toolCall.functionCalls || []) {
+        log("tool", "→ tool call: " + fc.name);
+        $("lastTool").textContent = fc.name;
+        const result = fc.name === "stock_summary" ? runStockSummary() : { error: "unknown tool" };
+        ws.send(JSON.stringify({ toolResponse: { functionResponses: [{ id: fc.id, name: fc.name, response: result }] }}));
+      }
+    }
+    if (msg.serverContent?.turnComplete) { /* model finished a turn */ }
+  };
+  ws.onclose = (e) => { setConn("Disconnected" + (e.reason?": "+e.reason:""), false); live = false; $("mic").classList.remove("live"); $("mic").textContent = "Tap to talk"; };
+  ws.onerror = () => { setConn("Error (check key / model)", false); log("sys", "· websocket error — verify the API key and that Live API is enabled"); };
+}
+
+async function startMic() {
+  audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+  await audioCtx.resume();
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true }});
+  const src = audioCtx.createMediaStreamSource(micStream);
+  procNode = audioCtx.createScriptProcessor(4096, 1, 1);
+  src.connect(procNode); procNode.connect(audioCtx.destination);
+  procNode.onaudioprocess = (e) => {
+    if (!live || ws?.readyState !== 1) return;
+    const pcm = to16kPCM(e.inputBuffer.getChannelData(0), audioCtx.sampleRate);
+    ws.send(JSON.stringify({ realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: toB64(pcm) } }}));
+    spokeAt = performance.now(); awaitingReply = true; // last time we sent audio; reply latency measured from here
+  };
+}
+
+function stopMic() {
+  live = false;
+  procNode?.disconnect(); micStream?.getTracks().forEach(t=>t.stop());
+  $("mic").classList.remove("live"); $("mic").textContent = "Tap to talk";
+}
+
+$("key").addEventListener("input", () => { $("mic").disabled = !$("key").value.trim(); $("mic").textContent = "Tap to talk"; });
+
+$("mic").addEventListener("click", async () => {
+  try {
+    if (!ws || ws.readyState > 1) await connect();
+    if (!micStream) await startMic();
+    live = !live;
+    if (live) { $("mic").classList.add("live"); $("mic").textContent = "Listening… tap to stop"; }
+    else stopMic();
+  } catch (err) { log("sys", "· error: " + err.message); }
+});
+</script>
+</body>
+</html>

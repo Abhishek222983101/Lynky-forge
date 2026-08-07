@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sornam
+      POSTGRES_PASSWORD: sornam
+      POSTGRES_DB: sornam
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ../apps/api
+    env_file: ../.env
+    command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
+    ports:
+      - "3001:3000"
+    volumes:
+      - api_storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ../apps/api
+    env_file: ../.env
+    command: node dist/src/workers/worker.js
+    volumes:
+      - api_storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
+  api_storage:
