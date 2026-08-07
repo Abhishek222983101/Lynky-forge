@@ -1,5 +1,5 @@
 {
-  "name": "@sornam-ai/api",
+  "name": "@lynky-forge/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -28,6 +28,7 @@
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.34.2",
     "decimal.js": "^10.4.3",
+    "dotenv": "^17.4.2",
     "ioredis": "^5.4.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
