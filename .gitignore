@@ -24,3 +24,4 @@ start-tunnel.ps1
 cloudflared.exe
 **/cloudflared.exe
 storage/
+.vercel
