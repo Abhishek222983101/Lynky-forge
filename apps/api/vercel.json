@@ -1,13 +1,3 @@
 {
-  "installCommand": "npm install && npx prisma generate",
-  "buildCommand": "npm run build",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "node_modules/.prisma/**",
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
-  ]
+  "installCommand": "npm install && npx prisma generate"
 }
