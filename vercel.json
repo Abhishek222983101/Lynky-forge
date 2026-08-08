@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install && cd apps/api && npm install --ignore-scripts && npx prisma generate",
-  "buildCommand": "cd apps/api && npx tsc -p tsconfig.build.json && npx esbuild dist/src/main.js --bundle --platform=node --target=node20 --format=cjs --outfile=../../api/index.js --external:sharp --external:\"@prisma/client\" --external:\".prisma/*\" --external:\"@nestjs/websockets\" --external:\"@nestjs/websockets/*\" --external:\"@nestjs/microservices\" --external:\"@nestjs/microservices/*\" --external:\"class-transformer\" --external:\"class-validator\" --external:\"cache-manager\" --external:\"@nestjs/cache-manager/*\" --external:\"@nestjs/bull\" --external:\"bull\" --minify && mkdir -p ../../api/node_modules/.prisma ../../api/node_modules/@prisma && cp -r node_modules/.prisma/* ../../api/node_modules/.prisma/ && cp -r node_modules/@prisma/* ../../api/node_modules/@prisma/",
+  "installCommand": "bash scripts/install-api.sh",
+  "buildCommand": "bash scripts/build-api.sh",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs"
 }
