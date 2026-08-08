@@ -1,43 +1,51 @@
-# Session Summary — Phase 0
+# Session Summary — Phase 1
 
 **Date:** 8 Aug 2026
-**Model used:** MiMo
-**Time spent:** ~25 min
+**Model used:** MiMo (1.1/1.2/1.4), K3 (1.3 schema design)
+**Time spent:** ~35 min
 
 ## Completed
-- [x] Copied sornam-ai → lynky-forge, clean slate, fresh git init
-- [x] Renamed @sornam-ai → @lynky-forge in both package.json files
-- [x] Stripped all jewellery env vars from env.ts (GOLD_*, SARVAM_*, GEMINI_*, VEO_*, CONTENT_*, META_*, CLOUDINARY_*, REDIS_URL)
-- [x] Added KIMI_API_KEY, KIMI_MODEL, KIMI_BASE_URL, NEXT_PUBLIC_API_URL, CRON_SECRET to env.ts
-- [x] Rewrote .env.example for Lynky Forge
-- [x] Created .env with Neon pooled connection string (gitignored)
-- [x] Removed contentStorageDir from main.ts (jewellery-specific static serve)
-- [x] Added dotenv/config import for .env loading
-- [x] Installed npm deps + dotenv
-- [x] Prisma generate + migrate deploy (9 sornam migrations applied to Neon)
-- [x] Seeded admin: admin@forge.demo / DemoPass12345!
-- [x] Smoke test: login returns JWT on localhost:3001
-- [x] Committed: "chore: phase 0 — rename sornam → lynky, env surgery, Neon DB connected, login verified"
 
-## In progress / blocked
-- None
+- [x] Deleted 16 jewellery modules + workers directory (~12,000 lines removed)
+- [x] Deleted integrations module (gold-rate, sarvam, whatsapp clients)
+- [x] Renamed owner-cockpit → ask (rewritten as clean stub for Phase 5)
+- [x] Slimmed app.module.ts to 7 modules (auth, audit-logs, ask, shops, users, access)
+- [x] Stripped schema.prisma: deleted 26 jewellery models, 20 jewellery enums
+- [x] Added 12 manufacturing CRM models (Company/Contact/Deal/Rfq/Quote/Task/Activity/Order/AiQuoteCache/AskCache/DashboardSnapshot)
+- [x] Added 9 manufacturing enums (DealStage/QuoteStatus/TaskType/TaskStatus/ActivityType/Industry/LeadScore/DealSource/RfqSource/OrderStatus)
+- [x] Fresh migration applied to Neon (20260808001815_init)
+- [x] prisma validate + tsc --noEmit + npm run build all pass
+- [x] Login verified with new schema
+- [x] seed-ops.ts deleted (jewellery), seed-admin.ts unchanged
+- [x] Shop created: "Lynky Forge Demo" via API
+- [x] All endpoints tested: auth, shops, access, ask (stub) working
+
+## Deleted modules (16 + workers)
+schemes, repairs, buyback, karigar, metal-rates, scan-bill, audit-books, content, voice, inventory, billing, payments, accounting, customers, sales, integrations, workers
+
+## Kept modules (7)
+auth, audit-logs, ask, shops, users, access, common (database/config/decorators/errors/guards/types/utils)
+
+## New schema (429 lines)
+Enums: UserRole, StorageMode, AccessSection, DealStage, QuoteStatus, TaskType, TaskStatus, ActivityType, Industry, LeadScore, DealSource, RfqSource, OrderStatus
+
+Models: Shop, User, UserSectionAccess, AuditLog, InternalEvent, Company, Contact, Deal, Rfq, Quote, Task, Activity, Order, AiQuoteCache, AskCache, DashboardSnapshot
 
 ## Files touched
-- `.env.example` — rewritten for Lynky Forge (no jewellery vars, add KIMI/CRON vars)
-- `apps/api/package.json` — name: @lynky-forge/api
-- `apps/api/src/common/config/env.ts` — stripped 60+ jewellery env vars, added 5 Lynky Forge vars
-- `apps/api/src/main.ts` — removed contentStorageDir import and /media/content static serve, added dotenv/config
-- `apps/web/package.json` — name: @lynky-forge/web
-- `apps/api/.env` — Neon connection string (gitignored, copied from root .env)
-- `.env` — Neon + JWT + seed vars (gitignored)
+- `apps/api/prisma/schema.prisma` — complete rewrite (965 → 429 lines)
+- `apps/api/prisma/migrations/` — old deleted, fresh 20260808001815_init created
+- `apps/api/src/app.module.ts` — slimmed to 7 modules
+- `apps/api/src/modules/ask/` — 4 new files (controller/service/schemas/module)
+- `apps/api/scripts/seed-ops.ts` — deleted (jewellery)
 
 ## Decisions made (lock these)
-- API runs on port 3001 (not 3000, which was in use)
-- Password minimum 12 chars enforced by seed-admin.ts → using DemoPass12345!
-- dotenv installed for .env loading (sornam didn't need it, we do)
-- apps/api/.env is a copy of root .env (prisma + nestjs both need it)
+- RFQ and Quote are 1:1 with Deal (not 1:N) — simpler for demo
+- No BullMQ/Redis — automations synchronous in Prisma $transaction
+- AIQuoteCache/AskCache keyed by SHA256 hash of RFQ/question — deduplicates identical requests
+- DashboardSnapshot precomputed at seed (60 daily entries) — avoids expensive on-the-fly aggregation
+- AccessSection enum updated: dashboard, pipeline, companies, rfqs, quotes, tasks, ask, team
 
 ## Next session
-- Phase 1 — Backend Surgery (delete jewellery modules, schema strip, add mfg models, fresh migrate)
-- Recommended model: K3 for schema design (1.3)
+- Phase 2 — Core API (companies, deals, rfqs, quotes, tasks, activities, dashboard endpoints)
+- Recommended model: MiMo bulk, K3 for stage-move logic (2.2)
 - Blockers to clear first: None
