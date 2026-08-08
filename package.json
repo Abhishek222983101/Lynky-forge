@@ -1,0 +1,9 @@
+{
+  "name": "lynky-forge",
+  "private": true,
+  "scripts": {
+    "build:api": "cd apps/api && bash scripts/build-vercel.sh",
+    "build:web": "cd apps/web && npm run build",
+    "build": "npm run build:api && npm run build:web"
+  }
+}

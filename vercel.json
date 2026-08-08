@@ -1,12 +1,11 @@
 {
-  "version": 2,
+  "installCommand": "npm install --ignore-scripts",
+  "buildCommand": "cd apps/api && bash scripts/build-vercel.sh",
+  "outputDirectory": "apps/api/api",
   "builds": [
     {
-      "src": "apps/api/api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["apps/api/dist/**", "apps/api/node_modules/**", "apps/api/prisma/**"]
-      }
+      "src": "apps/api/api/index.js",
+      "use": "@vercel/node"
     },
     {
       "src": "apps/web/next.config.js",
@@ -14,7 +13,13 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/apps/api/api/index.ts" },
-    { "src": "/(.*)", "dest": "/apps/web/$1" }
+    {
+      "src": "/api/(.*)",
+      "dest": "/apps/api/api/index.js"
+    },
+    {
+      "src": "/((?!api/).*)",
+      "dest": "/apps/web/$1"
+    }
   ]
 }
