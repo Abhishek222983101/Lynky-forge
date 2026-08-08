@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Web deps (Vercel auto-detects Next.js but we need installCommand override)
-cd apps/web && npm install && cd ../..
+# Root deps (for Next.js detection)
+npm install
 
 # API deps + Prisma
 cd apps/api
