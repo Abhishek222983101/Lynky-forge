@@ -48,7 +48,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-ink">
             <span className="font-display text-xl font-bold text-signal">F</span>
           </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Lynky Forge</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Forge</h1>
           <p className="mt-1.5 text-sm text-steel">CRM for manufacturers who never drop a quote.</p>
         </div>
 
@@ -82,7 +82,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="mt-6 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-steel">
-          Lynky AI · Forge
+          Forge
         </p>
       </div>
     </div>

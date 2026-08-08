@@ -39,10 +39,10 @@ const NAV = [
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
-      <img src="/logo.jpg" alt="Lynky Forge" className="size-8 rounded-md object-contain" />
+      <img src="/logo.jpg" alt="Forge" className="size-8 rounded-md object-contain" />
       <div className="flex flex-col leading-none">
         <span className="font-display text-[17px] font-semibold tracking-tight text-white">
-          Lynky Forge
+          Forge
         </span>
         <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-steel">
           CRM · Sales OS
@@ -121,7 +121,7 @@ function UserCard() {
         </button>
       </div>
       <p className="mt-1 px-2 text-center font-mono text-[9px] tracking-wider text-steel/60">
-        Lynky AI · Forge
+        Forge
       </p>
     </div>
   );
@@ -137,7 +137,7 @@ export function Sidebar() {
         <button onClick={() => setOpen(true)} className="rounded-md p-2 text-white" aria-label="Open menu">
           <Menu className="size-5" />
         </button>
-        <span className="font-display text-[15px] font-semibold text-white">Lynky Forge</span>
+        <span className="font-display text-[15px] font-semibold text-white">Forge</span>
         <span className="size-9" />
       </div>
 

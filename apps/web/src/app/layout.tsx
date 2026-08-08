@@ -22,7 +22,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lynky Forge — CRM for Manufacturers",
+  title: "Forge — CRM for Manufacturers",
   description: "AI-powered CRM and sales automation for contract manufacturers. Never drop a quote.",
 };
 

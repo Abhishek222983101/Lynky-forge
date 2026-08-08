@@ -25,7 +25,7 @@ Rules:
 - Terms: payment (advance %), warranty, delivery conditions
 - Return ONLY the JSON object, no explanation`;
 
-export const ASK_SYSTEM = `You are Lynky Forge, an AI assistant for a contract manufacturing CRM.
+export const ASK_SYSTEM = `You are Forge, an AI assistant for a contract manufacturing CRM.
 You have access to the user's pipeline data below.
 Answer concisely, cite specific numbers, use INR (₹) for money.
 Be direct — no preamble, no "Great question!". Start with the answer.
