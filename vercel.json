@@ -1,6 +1,17 @@
 {
-  "installCommand": "bash scripts/install.sh",
-  "buildCommand": "bash scripts/build.sh",
-  "outputDirectory": "apps/web/.next",
-  "framework": "nextjs"
+  "installCommand": "bash scripts/install.sh && bash scripts/build.sh",
+  "builds": [
+    {
+      "src": "apps/api/api/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "apps/web/next.config.js",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/apps/api/api/index.js" },
+    { "src": "/((?!api/).*)", "dest": "/apps/web/$1" }
+  ]
 }
