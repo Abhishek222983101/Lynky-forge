@@ -1,51 +1,71 @@
-# Session Summary — Phase 1
+# Session Summary — Phase 2 (Core API)
 
 **Date:** 8 Aug 2026
-**Model used:** MiMo (1.1/1.2/1.4), K3 (1.3 schema design)
-**Time spent:** ~35 min
+**Model used:** K3 (full phase — critical-path logic)
+**Time spent:** ~1.5h
 
 ## Completed
 
-- [x] Deleted 16 jewellery modules + workers directory (~12,000 lines removed)
-- [x] Deleted integrations module (gold-rate, sarvam, whatsapp clients)
-- [x] Renamed owner-cockpit → ask (rewritten as clean stub for Phase 5)
-- [x] Slimmed app.module.ts to 7 modules (auth, audit-logs, ask, shops, users, access)
-- [x] Stripped schema.prisma: deleted 26 jewellery models, 20 jewellery enums
-- [x] Added 12 manufacturing CRM models (Company/Contact/Deal/Rfq/Quote/Task/Activity/Order/AiQuoteCache/AskCache/DashboardSnapshot)
-- [x] Added 9 manufacturing enums (DealStage/QuoteStatus/TaskType/TaskStatus/ActivityType/Industry/LeadScore/DealSource/RfqSource/OrderStatus)
-- [x] Fresh migration applied to Neon (20260808001815_init)
-- [x] prisma validate + tsc --noEmit + npm run build all pass
-- [x] Login verified with new schema
-- [x] seed-ops.ts deleted (jewellery), seed-admin.ts unchanged
-- [x] Shop created: "Lynky Forge Demo" via API
-- [x] All endpoints tested: auth, shops, access, ask (stub) working
+- [x] 2.0 Automations module — `runStageChange(tx, ctx)` sync engine inside caller's `$transaction`
+  - QUOTE_SENT → idempotent 3-day follow-up Task (1h idempotency window)
+  - WON → Order auto-created (ORD-YYYY-NNNN sequential) + DEAL_WON activity
+  - LOST → DEAL_LOST activity
+- [x] 2.1 Companies + Contacts — CRUD, `?q=`/`?industry=` filters, Company 360 (`?include=deals,contacts,activities,tasks`), primary-contact demotion rule
+- [x] 2.2 Deals + stage move — full `$transaction`: fetch → validate (terminal-stage lock, LOST requires lostReason, same-stage 400) → update → STAGE_CHANGE activity → automations → audit. Returns `{ deal, order, activity, tasksCreated }`
+- [x] 2.3 RFQs — one-shot intake creates Company (optional) → Deal (NEW_RFQ) → RFQ atomically; deal value defaults to `targetPrice × qty`
+- [x] 2.3 Quotes — auto `quoteNo` (Q-YYYY-NNNN per shop), server-side total via decimal.js, 1:1 with deal (409 on dup), status state machine (DRAFT→SENT→ACCEPTED/REJECTED/EXPIRED), SENT auto-advances deal to QUOTE_SENT → fires follow-up automation
+- [x] 2.4 Tasks — CRUD + `?overdue=true` filter + status updates
+- [x] 2.4 Activities — deal timeline, company timeline (all stage/quote/won/lost activities carry `companyId`)
+- [x] 2.5 Dashboard — single `GET /dashboard`: pipelineValue, activeDeals, winRate (90d), overdueTasks, dealsByStage, pipelineValueSeries (snapshots), topLossReasons, hotDeals, overdueTaskList. 10 parallel Prisma queries
+- [x] All 8 modules registered in `app.module.ts` — 34 routes mapped
+- [x] Demo owner user created: `aarav@forge.demo` / `ForgeOwner123!` (role: owner, attached to Lynky Forge Demo shop)
+- [x] 64/64 end-to-end curl tests pass — `scripts/test-api-phase2.sh`
+- [x] Phase 1 baseline regression: auth, shops/current, ask stub — all intact
 
-## Deleted modules (16 + workers)
-schemes, repairs, buyback, karigar, metal-rates, scan-bill, audit-books, content, voice, inventory, billing, payments, accounting, customers, sales, integrations, workers
+## Bug found & fixed during testing
 
-## Kept modules (7)
-auth, audit-logs, ask, shops, users, access, common (database/config/decorators/errors/guards/types/utils)
+Stage-change / quote-sent / won / lost activities were missing `companyId` → Company 360 timeline missed them. Fixed by threading `companyId` through `StageChangeContext` and all activity creates. Also added `companyId` to auto-created follow-up tasks.
 
-## New schema (429 lines)
-Enums: UserRole, StorageMode, AccessSection, DealStage, QuoteStatus, TaskType, TaskStatus, ActivityType, Industry, LeadScore, DealSource, RfqSource, OrderStatus
+## Files created (26 new)
 
-Models: Shop, User, UserSectionAccess, AuditLog, InternalEvent, Company, Contact, Deal, Rfq, Quote, Task, Activity, Order, AiQuoteCache, AskCache, DashboardSnapshot
+```
+src/modules/automations/  module, service
+src/modules/companies/    module, controller, contacts.controller, service, schemas
+src/modules/deals/        module, controller, service, schemas
+src/modules/rfqs/         module, controller, service, schemas
+src/modules/quotes/       module, controller, service, schemas
+src/modules/tasks/        module, controller, service, schemas
+src/modules/activities/   module, controller, service, schemas
+src/modules/dashboard/    module, controller, service
+scripts/test-api-phase2.sh (64-assertion e2e suite)
+```
 
-## Files touched
-- `apps/api/prisma/schema.prisma` — complete rewrite (965 → 429 lines)
-- `apps/api/prisma/migrations/` — old deleted, fresh 20260808001815_init created
-- `apps/api/src/app.module.ts` — slimmed to 7 modules
-- `apps/api/src/modules/ask/` — 4 new files (controller/service/schemas/module)
-- `apps/api/scripts/seed-ops.ts` — deleted (jewellery)
+## Files modified
+
+- `src/app.module.ts` — 8 new module imports
 
 ## Decisions made (lock these)
-- RFQ and Quote are 1:1 with Deal (not 1:N) — simpler for demo
-- No BullMQ/Redis — automations synchronous in Prisma $transaction
-- AIQuoteCache/AskCache keyed by SHA256 hash of RFQ/question — deduplicates identical requests
-- DashboardSnapshot precomputed at seed (60 daily entries) — avoids expensive on-the-fly aggregation
-- AccessSection enum updated: dashboard, pipeline, companies, rfqs, quotes, tasks, ask, team
+
+- Quote totals computed server-side from line items via `decimal.js` — client totals never trusted
+- Quote status SENT auto-advances early-stage deals (NEW_RFQ/CONTACTED) to QUOTE_SENT so the follow-up automation fires — one tx, no orphans
+- Order numbering `ORD-YYYY-NNNN` mirrors quote numbering convention
+- All CRM activities carry `companyId` so Company 360 timeline is complete
+- Follow-up task idempotency window: 1 hour (same dealId + type + autoCreated)
+- Test suite expects a clean DB (quoteNo assertions); wipe CRM tables before re-running
+
+## Manual test (quick)
+
+```bash
+cd ~/lynky-forge/apps/api && node dist/src/main.js   # port 3001
+TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"aarav@forge.demo","password":"ForgeOwner123!"}' | jq -r .accessToken)
+curl -s http://localhost:3001/api/v1/dashboard -H "Authorization: Bearer $TOKEN" | jq
+# Full suite: ~/lynky-forge/scripts/test-api-phase2.sh (64 assertions)
+```
 
 ## Next session
-- Phase 2 — Core API (companies, deals, rfqs, quotes, tasks, activities, dashboard endpoints)
-- Recommended model: MiMo bulk, K3 for stage-move logic (2.2)
-- Blockers to clear first: None
+
+- Phase 3 — Frontend shell (Next.js 15), Dashboard + Kanban (K3 for 3.5/3.6, MiMo for scaffold)
+- Blockers to clear first: none
+- Note: `pipelineValueSeries` is empty until Phase 6 seed populates `dashboard_snapshots`

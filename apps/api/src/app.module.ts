@@ -7,6 +7,14 @@ import { AskModule } from "./modules/ask/ask.module";
 import { ShopsModule } from "./modules/shops/shops.module";
 import { UsersModule } from "./modules/users/users.module";
 import { AccessModule } from "./modules/access/access.module";
+import { AutomationsModule } from "./modules/automations/automations.module";
+import { CompaniesModule } from "./modules/companies/companies.module";
+import { DealsModule } from "./modules/deals/deals.module";
+import { RfqsModule } from "./modules/rfqs/rfqs.module";
+import { QuotesModule } from "./modules/quotes/quotes.module";
+import { TasksModule } from "./modules/tasks/tasks.module";
+import { ActivitiesModule } from "./modules/activities/activities.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { AppController } from "./app.controller";
 import { env } from "./common/config/env";
 
@@ -19,7 +27,15 @@ import { env } from "./common/config/env";
     ShopsModule,
     UsersModule,
     AccessModule,
-    AskModule
+    AskModule,
+    AutomationsModule,
+    CompaniesModule,
+    DealsModule,
+    RfqsModule,
+    QuotesModule,
+    TasksModule,
+    ActivitiesModule,
+    DashboardModule
   ],
   controllers: [AppController]
 })
