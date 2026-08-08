@@ -6,7 +6,7 @@ import { AuthUser } from "@/common/types/auth-user";
 import { money } from "@/common/utils/decimal";
 import { AuditLogsService } from "@/modules/audit-logs/audit-logs.service";
 import { AutomationsService } from "@/modules/automations/automations.service";
-import { CreateQuoteDto, ListQuotesQueryDto, UpdateQuoteStatusDto } from "./quotes.schemas";
+import { CreateQuoteDto, ListQuotesQueryDto, UpdateQuoteStatusDto, ApplyDraftDto } from "./quotes.schemas";
 
 type Tx = Prisma.TransactionClient;
 
@@ -191,6 +191,60 @@ export class QuotesService {
   private requireShop(actor: AuthUser) {
     if (!actor.shopId) throw new AppError("Shop context required", 400);
     return actor.shopId;
+  }
+
+  /**
+   * Apply AI-generated draft to an existing quote. Replaces line items, terms,
+   * and recomputes totalAmount server-side. Only allowed on DRAFT or quotes
+   * with aiGenerated=true (re-drafting).
+   */
+  async applyDraft(id: string, input: ApplyDraftDto, actor: AuthUser) {
+    const shopId = this.requireShop(actor);
+
+    return this.prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findFirst({
+        where: { id, shopId },
+        include: { deal: { select: { id: true, title: true, stage: true } } }
+      });
+      if (!quote) throw new AppError("Quote not found", 404);
+
+      // Allow applying draft to DRAFT, SENT (re-draft before re-sending), or AI-generated quotes
+      if (quote.status === QuoteStatus.ACCEPTED || quote.status === QuoteStatus.REJECTED) {
+        throw new AppError("Cannot re-draft an accepted or rejected quote", 400);
+      }
+
+      const totalAmount = input.lineItems.reduce(
+        (sum, item) => sum.add(money(item.qty).mul(money(item.unitPrice))),
+        money(0)
+      );
+
+      const updated = await tx.quote.update({
+        where: { id },
+        data: {
+          lineItems: input.lineItems as unknown as Prisma.InputJsonValue,
+          terms: input.terms as unknown as Prisma.InputJsonValue,
+          totalAmount,
+          aiGenerated: true
+        }
+      });
+
+      await this.audit.create(tx, {
+        shopId,
+        actorUserId: actor.id,
+        action: "quote.draft_applied",
+        entityType: "quote",
+        entityId: id,
+        source: "api",
+        afterData: {
+          quoteNo: quote.quoteNo,
+          lineItems: input.lineItems.length,
+          totalAmount: totalAmount.toString(),
+          aiGenerated: true
+        }
+      });
+
+      return updated;
+    });
   }
 }
 

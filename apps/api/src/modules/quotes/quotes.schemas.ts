@@ -19,6 +19,12 @@ export const updateQuoteStatusSchema = z.object({
   status: z.nativeEnum(QuoteStatus)
 });
 
+export const applyDraftSchema = z.object({
+  lineItems: z.array(quoteLineItemSchema).min(1),
+  terms: z.array(z.string().max(300)).max(20).optional(),
+  leadTimeDays: z.number().int().positive().optional()
+});
+
 export const listQuotesQuerySchema = z.object({
   status: z.nativeEnum(QuoteStatus).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -28,4 +34,5 @@ export const listQuotesQuerySchema = z.object({
 export type QuoteLineItemDto = z.infer<typeof quoteLineItemSchema>;
 export type CreateQuoteDto = z.infer<typeof createQuoteSchema>;
 export type UpdateQuoteStatusDto = z.infer<typeof updateQuoteStatusSchema>;
+export type ApplyDraftDto = z.infer<typeof applyDraftSchema>;
 export type ListQuotesQueryDto = z.infer<typeof listQuotesQuerySchema>;

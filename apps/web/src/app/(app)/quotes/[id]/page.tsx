@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDraftQuote } from "@/hooks/use-ai-quote";
+import { useDraftQuote, useApplyDraft } from "@/hooks/use-ai-quote";
 import { useQuote, useUpdateQuoteStatus } from "@/hooks/use-quotes";
 import { ApiError } from "@/lib/api";
 import { getUser } from "@/lib/auth";
@@ -31,6 +31,7 @@ export default function QuoteDetailPage() {
   const { data: quote, isLoading, isError, refetch } = useQuote(id);
   const updateStatus = useUpdateQuoteStatus();
   const draftQuote = useDraftQuote();
+  const applyDraft = useApplyDraft();
   const [notice, setNotice] = useState<string | null>(null);
   const [showDraft, setShowDraft] = useState(false);
 
@@ -225,6 +226,20 @@ export default function QuoteDetailPage() {
           isLoading={draftQuote.isPending}
           error={draftQuote.isError ? draftQuote.error : null}
           data={draftQuote.data}
+          isApplying={applyDraft.isPending}
+          applyError={applyDraft.isError ? applyDraft.error : null}
+          onApply={(lineItems, terms) => {
+            applyDraft.mutate(
+              { quoteId: quote.id, lineItems, terms },
+              {
+                onSuccess: () => {
+                  setShowDraft(false);
+                  setNotice("AI draft applied — line items and terms updated.");
+                  refetch();
+                },
+              }
+            );
+          }}
           onClose={() => setShowDraft(false)}
         />
       ) : null}
@@ -236,6 +251,9 @@ function AiDraftModal({
   isLoading,
   error,
   data,
+  isApplying,
+  applyError,
+  onApply,
   onClose,
 }: {
   isLoading: boolean;
@@ -248,6 +266,9 @@ function AiDraftModal({
         terms: string[];
       }
     | undefined;
+  isApplying: boolean;
+  applyError: Error | null;
+  onApply: (lineItems: { description: string; qty: number; unitPrice: number }[], terms: string[]) => void;
   onClose: () => void;
 }) {
   return (
@@ -342,6 +363,25 @@ function AiDraftModal({
               <p className="text-[13px] text-steel">
                 This is an AI-generated estimate based on the RFQ specs. Review the breakdown and adjust before sending.
               </p>
+
+              {applyError ? (
+                <div className="rounded-lg border border-hazard/40 bg-hazard-soft px-4 py-3 text-sm text-hazard">
+                  {applyError instanceof ApiError ? applyError.message : "Failed to apply draft. Try again."}
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-3 border-t border-mist pt-4">
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  Discard
+                </Button>
+                <Button
+                  size="sm"
+                  loading={isApplying}
+                  onClick={() => onApply(data.lineItems, data.terms)}
+                >
+                  Apply to Quote
+                </Button>
+              </div>
             </div>
           ) : null}
         </div>

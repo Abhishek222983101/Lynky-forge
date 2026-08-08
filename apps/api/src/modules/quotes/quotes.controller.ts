@@ -9,9 +9,11 @@ import {
   CreateQuoteDto,
   ListQuotesQueryDto,
   UpdateQuoteStatusDto,
+  ApplyDraftDto,
   createQuoteSchema,
   listQuotesQuerySchema,
-  updateQuoteStatusSchema
+  updateQuoteStatusSchema,
+  applyDraftSchema
 } from "./quotes.schemas";
 import { QuotesService } from "./quotes.service";
 
@@ -31,6 +33,15 @@ export class QuotesController {
   @Post()
   create(@Body(new ZodValidationPipe(createQuoteSchema)) body: CreateQuoteDto, @CurrentUser() user: AuthUser) {
     return this.quotes.create(body, user);
+  }
+
+  @Patch(":id/apply-draft")
+  applyDraft(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(applyDraftSchema)) body: ApplyDraftDto,
+    @CurrentUser() user: AuthUser
+  ) {
+    return this.quotes.applyDraft(id, body, user);
   }
 
   @Get()
