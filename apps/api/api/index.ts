@@ -1,19 +1,22 @@
-import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
-import { AppModule } from '../dist/src/app.module';
+import "dotenv/config";
+import "reflect-metadata";
+import { NestFactory } from "@nestjs/core";
+import { ExpressAdapter } from "@nestjs/platform-express";
+import express from "express";
+import { AppModule } from "../dist/src/app.module";
 
 const server = express();
-let app: any;
+let app: express.Express;
 
 async function bootstrap() {
   if (!app) {
-    app = await NestFactory.create(AppModule, new ExpressAdapter(server));
-    app.enableCors({ origin: true, credentials: true });
-    app.setGlobalPrefix('api/v1');
-    await app.init();
+    const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(server));
+    nestApp.enableCors({ origin: true, credentials: true });
+    nestApp.setGlobalPrefix("api/v1");
+    await nestApp.init();
+    app = server;
   }
-  return server;
+  return app;
 }
 
 export default async function handler(req: any, res: any) {
