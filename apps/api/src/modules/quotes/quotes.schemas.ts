@@ -25,6 +25,11 @@ export const applyDraftSchema = z.object({
   leadTimeDays: z.number().int().positive().optional()
 });
 
+export const draftCreateQuoteSchema = z.object({
+  dealId: z.string().uuid(),
+  validUntilDays: z.number().int().min(1).max(365).default(30)
+});
+
 export const listQuotesQuerySchema = z.object({
   status: z.nativeEnum(QuoteStatus).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -35,4 +40,5 @@ export type QuoteLineItemDto = z.infer<typeof quoteLineItemSchema>;
 export type CreateQuoteDto = z.infer<typeof createQuoteSchema>;
 export type UpdateQuoteStatusDto = z.infer<typeof updateQuoteStatusSchema>;
 export type ApplyDraftDto = z.infer<typeof applyDraftSchema>;
+export type DraftCreateQuoteDto = z.infer<typeof draftCreateQuoteSchema>;
 export type ListQuotesQueryDto = z.infer<typeof listQuotesQuerySchema>;

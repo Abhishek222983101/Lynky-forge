@@ -10,10 +10,12 @@ import {
   ListQuotesQueryDto,
   UpdateQuoteStatusDto,
   ApplyDraftDto,
+  DraftCreateQuoteDto,
   createQuoteSchema,
   listQuotesQuerySchema,
   updateQuoteStatusSchema,
-  applyDraftSchema
+  applyDraftSchema,
+  draftCreateQuoteSchema
 } from "./quotes.schemas";
 import { QuotesService } from "./quotes.service";
 
@@ -28,6 +30,11 @@ export class QuotesController {
   @Post("draft")
   draft(@Body(new ZodValidationPipe(draftQuoteInputSchema)) body: DraftQuoteInput, @CurrentUser() user: AuthUser) {
     return this.ai.draftQuote(body, user);
+  }
+
+  @Post("draft-create")
+  draftCreate(@Body(new ZodValidationPipe(draftCreateQuoteSchema)) body: DraftCreateQuoteDto, @CurrentUser() user: AuthUser) {
+    return this.quotes.draftCreate(body, user);
   }
 
   @Post()

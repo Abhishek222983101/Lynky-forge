@@ -11,6 +11,32 @@ export function useDeals() {
   });
 }
 
+export function useDeleteDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del<{ success: boolean; id: string }>(`/deals/${id}`),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["deals"] });
+      const prev = qc.getQueryData<Paginated<DealListItem>>(["deals"]);
+      if (prev) {
+        qc.setQueryData<Paginated<DealListItem>>(["deals"], {
+          ...prev,
+          data: prev.data.filter((d) => d.id !== id),
+          total: prev.total - 1,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["deals"], ctx.prev);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
 export function useStageMove() {
   const qc = useQueryClient();
   return useMutation({

@@ -217,6 +217,41 @@ export class DealsService {
     if (!deal) throw new AppError("Deal not found", 404);
   }
 
+  /**
+   * Hard delete: removes deal + cascade children (rfq, quote, tasks, activities).
+   * Used for cleaning up test/spam data. Terminal deals (WON/LOST) blocked —
+   * they have orders or audit significance.
+   */
+  async remove(id: string, actor: AuthUser) {
+    const shopId = this.requireShop(actor);
+    const deal = await this.prisma.deal.findFirst({
+      where: { id, shopId },
+      select: { id: true, title: true, stage: true }
+    });
+    if (!deal) throw new AppError("Deal not found", 404);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.activity.deleteMany({ where: { dealId: id } });
+      await tx.task.deleteMany({ where: { dealId: id } });
+      await tx.order.deleteMany({ where: { dealId: id } });
+      await tx.quote.deleteMany({ where: { dealId: id } });
+      await tx.rfq.deleteMany({ where: { dealId: id } });
+      await tx.deal.delete({ where: { id } });
+
+      await this.audit.create(tx, {
+        shopId,
+        actorUserId: actor.id,
+        action: "deal.deleted",
+        entityType: "deal",
+        entityId: id,
+        source: "api",
+        beforeData: { title: deal.title, stage: deal.stage }
+      });
+    });
+
+    return { success: true, id };
+  }
+
   private requireShop(actor: AuthUser) {
     if (!actor.shopId) throw new AppError("Shop context required", 400);
     return actor.shopId;

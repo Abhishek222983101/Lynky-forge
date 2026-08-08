@@ -5,8 +5,9 @@ import { AppError } from "@/common/errors/app-error";
 import { AuthUser } from "@/common/types/auth-user";
 import { money } from "@/common/utils/decimal";
 import { AuditLogsService } from "@/modules/audit-logs/audit-logs.service";
+import { AiService } from "@/modules/ai/ai.service";
 import { AutomationsService } from "@/modules/automations/automations.service";
-import { CreateQuoteDto, ListQuotesQueryDto, UpdateQuoteStatusDto, ApplyDraftDto } from "./quotes.schemas";
+import { CreateQuoteDto, ListQuotesQueryDto, UpdateQuoteStatusDto, ApplyDraftDto, DraftCreateQuoteDto } from "./quotes.schemas";
 
 type Tx = Prisma.TransactionClient;
 
@@ -24,7 +25,8 @@ export class QuotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditLogsService,
-    private readonly automations: AutomationsService
+    private readonly automations: AutomationsService,
+    private readonly ai: AiService
   ) {}
 
   /**
@@ -64,6 +66,74 @@ export class QuotesService {
         entityId: quote.id,
         source: "api",
         afterData: { dealId: input.dealId, quoteNo, totalAmount: totalAmount.toString(), aiGenerated: input.aiGenerated }
+      });
+
+      return quote;
+    });
+  }
+
+  /**
+   * One-step: generate AI draft → create quote with that content.
+   * Called from pipeline card "Draft with AI" button.
+   * Returns the created quote so frontend can navigate to /quotes/:id.
+   */
+  async draftCreate(input: DraftCreateQuoteDto, actor: AuthUser) {
+    const shopId = this.requireShop(actor);
+
+    // 1. Validate deal: exists, has RFQ, has no existing quote
+    const deal = await this.prisma.deal.findFirst({
+      where: { id: input.dealId, shopId },
+      include: { quote: { select: { id: true, quoteNo: true } }, rfq: { select: { id: true } } }
+    });
+    if (!deal) throw new AppError("Deal not found", 404);
+    if (deal.quote) throw new AppError(`Deal already has quote ${deal.quote.quoteNo}`, 409);
+    if (!deal.rfq) throw new AppError("Deal has no RFQ to draft from", 400);
+
+    // 2. Get AI draft (idempotent, cached) — outside transaction, network call
+    const draft = await this.ai.draftQuote({ dealId: input.dealId }, actor);
+
+    // 3. Create quote with AI-generated content
+    const validUntil = new Date(Date.now() + input.validUntilDays * 24 * 60 * 60 * 1000);
+    return this.prisma.$transaction(async (tx) => {
+      const totalAmount = draft.lineItems.reduce(
+        (sum, item) => sum.add(money(item.qty).mul(money(item.unitPrice))),
+        money(0)
+      );
+      const quoteNo = await nextQuoteNo(tx, shopId);
+
+      const quote = await tx.quote.create({
+        data: {
+          shopId,
+          dealId: input.dealId,
+          quoteNo,
+          totalAmount,
+          validUntil,
+          aiGenerated: true,
+          lineItems: draft.lineItems as unknown as Prisma.InputJsonValue,
+          terms: draft.terms as unknown as Prisma.InputJsonValue
+        }
+      });
+
+      await tx.activity.create({
+        data: {
+          shopId,
+          dealId: input.dealId,
+          companyId: deal.companyId,
+          type: ActivityType.NOTE,
+          description: `Quote ${quoteNo} drafted with AI — ${draft.lineItems.length} line items, ₹${totalAmount.toString()}`,
+          metadata: { quoteId: quote.id, quoteNo, aiGenerated: true, leadTimeDays: draft.leadTimeDays },
+          actorId: actor.id
+        }
+      });
+
+      await this.audit.create(tx, {
+        shopId,
+        actorUserId: actor.id,
+        action: "quote.ai_created",
+        entityType: "quote",
+        entityId: quote.id,
+        source: "ai",
+        afterData: { dealId: input.dealId, quoteNo, totalAmount: totalAmount.toString(), aiGenerated: true, lineItems: draft.lineItems.length }
       });
 
       return quote;

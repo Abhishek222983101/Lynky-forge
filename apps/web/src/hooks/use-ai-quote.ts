@@ -17,6 +17,20 @@ export function useDraftQuote() {
   });
 }
 
+/** One-step: create quote with AI draft. Returns created quote (with id + quoteNo). */
+export function useDraftCreateQuote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dealId: string) =>
+      api.post<{ id: string; quoteNo: string }>("/quotes/draft-create", { dealId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
 export function useApplyDraft() {
   const qc = useQueryClient();
   return useMutation({

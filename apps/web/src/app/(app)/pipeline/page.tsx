@@ -10,13 +10,15 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LostReasonDialog } from "@/components/pipeline/lost-reason-dialog";
 import { PipelineCard } from "@/components/pipeline/pipeline-card";
 import { PipelineColumn } from "@/components/pipeline/pipeline-column";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeals, useStageMove } from "@/hooks/use-deals";
+import { useDeals, useDeleteDeal, useStageMove } from "@/hooks/use-deals";
+import { useDraftCreateQuote } from "@/hooks/use-ai-quote";
 import { ApiError } from "@/lib/api";
 import { formatINR } from "@/lib/format";
 import { OPEN_STAGES, PIPELINE_STAGES, type DealListItem, type DealStage } from "@/lib/types";
@@ -24,9 +26,14 @@ import { OPEN_STAGES, PIPELINE_STAGES, type DealListItem, type DealStage } from 
 export default function PipelinePage() {
   const { data, isLoading, isError, error, refetch } = useDeals();
   const stageMove = useStageMove();
+  const draftCreate = useDraftCreateQuote();
+  const deleteDeal = useDeleteDeal();
+  const router = useRouter();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingLost, setPendingLost] = useState<DealListItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DealListItem | null>(null);
+  const [draftingId, setDraftingId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export default function PipelinePage() {
 
   const openValue = deals.filter((d) => OPEN_STAGES.includes(d.stage)).reduce((s, d) => s + (parseFloat(d.value) || 0), 0);
 
-  function move(id: string, stage: DealStage, lostReason?: string) {
+  const move = useCallback((id: string, stage: DealStage, lostReason?: string) => {
     stageMove.mutate(
       { id, stage, lostReason },
       {
@@ -56,7 +63,7 @@ export default function PipelinePage() {
         },
       }
     );
-  }
+  }, [stageMove]);
 
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -74,6 +81,37 @@ export default function PipelinePage() {
       return;
     }
     move(id, target);
+  }
+
+  function handleDraftAi(deal: DealListItem) {
+    setDraftingId(deal.id);
+    draftCreate.mutate(deal.id, {
+      onSuccess: (created) => {
+        setDraftingId(null);
+        setBanner(`Quote ${created.quoteNo} drafted with AI — opening…`);
+        router.push(`/quotes/${created.id}`);
+      },
+      onError: (err) => {
+        setDraftingId(null);
+        setBanner(err instanceof ApiError ? err.message : "AI draft failed. Try again.");
+      },
+    });
+  }
+
+  function handleDelete(deal: DealListItem) {
+    setPendingDelete(deal);
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    const deal = pendingDelete;
+    setPendingDelete(null);
+    deleteDeal.mutate(deal.id, {
+      onSuccess: () => setBanner(`"${deal.title}" deleted.`),
+      onError: (err) => {
+        setBanner(err instanceof ApiError ? err.message : "Delete failed. Try again.");
+      },
+    });
   }
 
   return (
@@ -118,7 +156,15 @@ export default function PipelinePage() {
         >
           <div className="flex snap-x gap-4 overflow-x-auto pb-4">
             {PIPELINE_STAGES.map((stage) => (
-              <PipelineColumn key={stage} stage={stage} deals={byStage.get(stage) ?? []} activeId={activeId} />
+              <PipelineColumn
+                key={stage}
+                stage={stage}
+                deals={byStage.get(stage) ?? []}
+                activeId={activeId}
+                onDraftAi={handleDraftAi}
+                onDelete={handleDelete}
+                draftingId={draftingId}
+              />
             ))}
           </div>
           <DragOverlay dropAnimation={null}>
@@ -140,11 +186,35 @@ export default function PipelinePage() {
         />
       ) : null}
 
+      {pendingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" onClick={() => setPendingDelete(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-mist bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-base font-semibold text-ink">Delete deal?</h3>
+            <p className="mt-1.5 text-sm text-steel">
+              &ldquo;{pendingDelete.title}&rdquo; and all its RFQ, quote, tasks, and activities will be permanently removed.
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button onClick={() => setPendingDelete(null)} className="rounded-lg border border-mist px-4 py-2 text-sm font-medium text-ink hover:bg-canvas">
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteDeal.isPending}
+                className="rounded-lg bg-hazard px-4 py-2 text-sm font-medium text-white hover:bg-hazard/90 disabled:opacity-50"
+              >
+                {deleteDeal.isPending ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {banner ? (
-        <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[90vw] rounded-lg border border-hazard/40 bg-hazard-soft px-4 py-2.5 text-sm font-medium text-hazard shadow-lg">
+        <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[90vw] rounded-lg border border-mist bg-surface px-4 py-2.5 text-sm font-medium text-ink shadow-lg">
           {banner}
         </div>
       ) : null}
     </div>
   );
 }
+

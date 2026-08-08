@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { AuthUser } from "@/common/types/auth-user";
@@ -43,5 +43,10 @@ export class DealsController {
   @Patch(":id/stage")
   moveStage(@Param("id") id: string, @Body(new ZodValidationPipe(stageMoveSchema)) body: StageMoveDto, @CurrentUser() user: AuthUser) {
     return this.deals.moveStage(id, body, user);
+  }
+
+  @Delete(":id")
+  remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.deals.remove(id, user);
   }
 }

@@ -39,12 +39,20 @@ const NAV = [
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
-      <span className="flex size-8 items-center justify-center rounded-md bg-signal font-display text-[15px] font-bold text-white">
-        F
+      <span className="flex size-8 items-center justify-center rounded-md bg-signal font-display text-[15px] font-bold text-white shadow-sm shadow-signal/30">
+        <svg viewBox="0 0 24 24" className="size-5 fill-white" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 12l10 5 10-5M2 17l10 5 10-5" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.4" />
+          <rect x="9" y="3" width="6" height="18" rx="1" fill="white" />
+        </svg>
       </span>
-      <span className="font-display text-[17px] font-semibold tracking-tight text-white">
-        Lynky Forge
-      </span>
+      <div className="flex flex-col leading-none">
+        <span className="font-display text-[17px] font-semibold tracking-tight text-white">
+          Lynky Forge
+        </span>
+        <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-steel">
+          CRM · Sales OS
+        </span>
+      </div>
     </Link>
   );
 }
@@ -117,6 +125,9 @@ function UserCard() {
           <LogOut className="size-4" strokeWidth={1.8} />
         </button>
       </div>
+      <p className="mt-1 px-2 text-center font-mono text-[9px] tracking-wider text-steel/60">
+        Lynky AI · Forge
+      </p>
     </div>
   );
 }

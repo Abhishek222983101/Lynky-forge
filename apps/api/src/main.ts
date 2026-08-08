@@ -13,7 +13,13 @@ async function bootstrap() {
   const origins = env.CORS_ORIGINS === "*" ? true : env.CORS_ORIGINS.split(",").map((origin) => origin.trim());
   app.enableCors({ origin: origins, credentials: true });
   app.setGlobalPrefix("api/v1");
-  await app.listen(env.PORT);
+
+  // Vercel serverless doesn't use app.listen — the adapter handles requests
+  if (!process.env.VERCEL) {
+    await app.listen(env.PORT);
+  } else {
+    await app.init();
+  }
 }
 
 void bootstrap();
