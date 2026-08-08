@@ -2,6 +2,6 @@
   "name": "lynky-forge",
   "private": true,
   "scripts": {
-    "vercel-build": "cd apps/web && npm install && npm run build"
+    "vercel-build": "cd apps/web && npm install && npm run build && cp -r .next ../.next"
   }
 }
