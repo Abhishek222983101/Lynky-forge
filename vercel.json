@@ -1,6 +1,6 @@
 {
-  "installCommand": "bash scripts/install-api.sh",
-  "buildCommand": "bash scripts/build-api.sh",
-  "outputDirectory": "apps/web/.next",
+  "rootDirectory": "apps/web",
+  "installCommand": "cd ../.. && bash scripts/install-api.sh",
+  "buildCommand": "cd ../.. && bash scripts/build-api.sh",
   "framework": "nextjs"
 }
