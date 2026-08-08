@@ -3,6 +3,8 @@ import { CurrentUser } from "@/common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { AuthUser } from "@/common/types/auth-user";
 import { ZodValidationPipe } from "@/common/utils/zod-validation.pipe";
+import { AiService } from "@/modules/ai/ai.service";
+import { DraftQuoteInput, draftQuoteInputSchema } from "@/modules/ai/ai.types";
 import {
   CreateQuoteDto,
   ListQuotesQueryDto,
@@ -16,7 +18,15 @@ import { QuotesService } from "./quotes.service";
 @Controller("quotes")
 @UseGuards(JwtAuthGuard)
 export class QuotesController {
-  constructor(private readonly quotes: QuotesService) {}
+  constructor(
+    private readonly quotes: QuotesService,
+    private readonly ai: AiService
+  ) {}
+
+  @Post("draft")
+  draft(@Body(new ZodValidationPipe(draftQuoteInputSchema)) body: DraftQuoteInput, @CurrentUser() user: AuthUser) {
+    return this.ai.draftQuote(body, user);
+  }
 
   @Post()
   create(@Body(new ZodValidationPipe(createQuoteSchema)) body: CreateQuoteDto, @CurrentUser() user: AuthUser) {

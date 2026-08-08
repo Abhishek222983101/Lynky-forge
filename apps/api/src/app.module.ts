@@ -3,6 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { DatabaseModule } from "./common/database/database.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
+import { AiModule } from "./modules/ai/ai.module";
 import { AskModule } from "./modules/ask/ask.module";
 import { ShopsModule } from "./modules/shops/shops.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -15,6 +16,7 @@ import { QuotesModule } from "./modules/quotes/quotes.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { ActivitiesModule } from "./modules/activities/activities.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { CronModule } from "./cron/cron.module";
 import { AppController } from "./app.controller";
 import { env } from "./common/config/env";
 
@@ -27,6 +29,7 @@ import { env } from "./common/config/env";
     ShopsModule,
     UsersModule,
     AccessModule,
+    AiModule,
     AskModule,
     AutomationsModule,
     CompaniesModule,
@@ -35,7 +38,8 @@ import { env } from "./common/config/env";
     QuotesModule,
     TasksModule,
     ActivitiesModule,
-    DashboardModule
+    DashboardModule,
+    CronModule
   ],
   controllers: [AppController]
 })

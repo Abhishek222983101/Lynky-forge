@@ -11,6 +11,9 @@ const envSchema = z.object({
   KIMI_API_KEY: z.string().optional(),
   KIMI_MODEL: z.string().default("kimi-k3"),
   KIMI_BASE_URL: z.string().default("https://api.moonshot.cn/v1"),
+  // Groq AI (primary — free, fast, Llama 3.3 70B)
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
   // Frontend URL (for CORS)
   NEXT_PUBLIC_API_URL: z.string().default("http://localhost:3000"),
   // Cron secret (for Vercel Cron endpoint)
