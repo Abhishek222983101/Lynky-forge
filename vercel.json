@@ -1,5 +1,5 @@
 {
   "installCommand": "bash scripts/install-api.sh",
-  "buildCommand": "bash scripts/build-api.sh",
+  "buildCommand": "bash scripts/build.sh",
   "framework": "nextjs"
 }

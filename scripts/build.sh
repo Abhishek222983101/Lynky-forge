@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# API: compile + bundle
+# Build API: compile + bundle
 cd apps/api
 npx tsc -p tsconfig.build.json
 npx esbuild dist/src/main.js \
@@ -28,3 +28,8 @@ cp -r node_modules/.prisma/* ../../api/node_modules/.prisma/
 cp -r node_modules/@prisma/* ../../api/node_modules/@prisma/
 
 echo "✅ API bundle: $(du -h ../../api/index.js | cut -f1)"
+
+# Build Next.js web app
+cd ../web
+npm run build
+echo "✅ Web build complete"
